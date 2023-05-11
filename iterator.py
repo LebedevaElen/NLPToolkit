@@ -3,6 +3,32 @@ from typing import List
 
 import numpy as np
 
+class BatchIterator():
+    def __init__(self,
+                 text_data: List[np.array],
+                 target: np.array,
+                 max_batch_size: int,
+                 extra_features: np.array = None):
+        """
+        :param text_data: list of tokenized texts, len(text_data) = n_samples
+        :param target: np.array of shape (n_samples, target_dim)
+        :param max_batch_size: maximum batch size
+        :param extra_features: other features
+        """
+
+        return
+
+    @property
+    def n_batches(self):
+        """
+        :return: number of batches
+        """
+        return
+
+    def __iter__(self):
+        return
+
+
 class SameLenBatchIterator():
     """
     Creates batches based on text data length (hence no padding).
@@ -81,4 +107,4 @@ class SameLenBatchIterator():
                         target_batch[batch_ind, 0] = self.terget[
                             self.same_len_bins[sent_len][sample_ind]]
 
-                    yield text_batch, features_batch, target_batch
+                    yield text_batch, target_batch, features_batch
