@@ -44,15 +44,24 @@ class SameLenBatchIterator():
         :param max_batch_size: maximum batch size
         :param extra_features: other features
         """
-
+        super().__init__()
         self.text_data = text_data
         self.n_samples = len(self.text_data)
         self.target = target
+        if extra_features is None:
+            self.n_features = 0
+            assert self.n_samples == len(self.target), \
+                f'Number of samples in text_data and target ' \
+                f'is not the same: ({self.n_samples}, {len(target)})'
+        else:
+            n_rows, self.n_features = extra_features.shape
+            assert n_rows == self.n_samples == len(self.target), \
+                f'Number of samples in text_data, target and extra features ' \
+                f'is not the same: ' \
+                f'({self.n_samples}, {len(self.target)}, {n_rows})'
+
         self.extra_features = extra_features
-        n_rows, self.n_features = self.extra_features.shape
-        assert n_rows == self.n_samples == len(self.target), \
-            f'Number of samples in text_data, target and extra features ' \
-                f'is not the same: ({self.n_samples}, {len(target)}, {n_rows})'
+
         self.max_batch_size = max_batch_size
 
         self.same_len_bins = defaultdict(list)
@@ -71,40 +80,43 @@ class SameLenBatchIterator():
              + int(len(self.same_len_bins[sent_len]) % max_batch_size > 0)
              for sent_len in self.same_len_bins])
 
-        @property
-        def n_batches(self):
-            """
-            :return: number of batches
-            """
-            return self._n_batches
+    @property
+    def n_batches(self):
+        """
+        :return: number of batches
+        """
+        return self._n_batches
 
-        def __iter__(self):
-            """
-            Iterates over same length batches
-            """
-            np.random.shuffle(self.sent_lens)
-            # iterating over same length texts
-            for sent_len in self.sent_lens:
-                n_len_samples = len(self.same_len_bins[sent_len])
-                indices = np.arange(n_len_samples)
-                np.random.shuffle(indices)
-                # iterating over batches with sent_len length
-                for start in range(0, n_len_samples, self.max_batch_size):
-                    end = min(start + self.max_batch_size, n_len_samples)
-                    batch_indices = indices[start:end]
-                    if len(batch_indices) == 1:
-                        continue
-                    text_batch = np.zeros((len(batch_indices), sent_len))
+    def __iter__(self):
+        """
+        Iterates over same length batches
+        """
+        np.random.shuffle(self.sent_lens)
+        # iterating over same length texts
+        for sent_len in self.sent_lens:
+            n_len_samples = len(self.same_len_bins[sent_len])
+            indices = np.arange(n_len_samples)
+            np.random.shuffle(indices)
+            # iterating over batches with sent_len length
+            for start in range(0, n_len_samples, self.max_batch_size):
+                end = min(start + self.max_batch_size, n_len_samples)
+                batch_indices = indices[start:end]
+                if len(batch_indices) == 1:
+                    continue
+                text_batch = np.zeros((len(batch_indices), sent_len))
+                features_batch = None
+                if self.n_features > 0:
                     features_batch = np.zeros((len(batch_indices),
                                                self.n_features))
-                    target_batch = np.zeros((len(batch_indices), 1))
+                target_batch = np.zeros((len(batch_indices), 1))
 
-                    for batch_ind, sample_ind in enumerate(batch_indices):
-                        text_batch[batch_ind, :] = self.text_data[
-                            self.same_len_bins[sent_len][sample_ind]]
+                for batch_ind, sample_ind in enumerate(batch_indices):
+                    text_batch[batch_ind, :] = self.text_data[
+                        self.same_len_bins[sent_len][sample_ind]]
+                    if self.n_features > 0:
                         features_batch[batch_ind, :] = self.extra_features[
                             self.same_len_bins[sent_len][sample_ind]]
-                        target_batch[batch_ind, 0] = self.terget[
-                            self.same_len_bins[sent_len][sample_ind]]
+                    target_batch[batch_ind, 0] = self.target[
+                        self.same_len_bins[sent_len][sample_ind]]
 
-                    yield text_batch, target_batch, features_batch
+                yield text_batch, target_batch, features_batch
